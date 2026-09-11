@@ -65,5 +65,7 @@ jobs:
           build-args: |
             UBUNTU_VERSION=22.04
             CUDA_VERSION=12.4.1
+            NCCL_VERSION=2.30.7
+            DEEPEP_COMMIT_HASH=d4f41e4e93
           cache-from: type=registry,ref=${{ steps.meta.outputs.cache_tag }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.cache_tag }},mode=max
