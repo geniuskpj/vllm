@@ -501,7 +501,8 @@ RUN --mount=type=cache,target=/opt/uv/cache \
     mkdir -p /tmp/ep_kernels_workspace/dist && \
     if [ "${BUILD_DEEPEP}" != "true" ]; then \
         echo "DeepEP disabled"; \
-    elif [ "${INSTALL_RUBIN_PRERELEASE}" = "true" ]; then \
+    else \
+        if [ "${INSTALL_RUBIN_PRERELEASE}" = "true" ]; then \
         # The Rubin CUDA builder provides NCCL in its architecture-specific \
         # toolkit directory rather than as a Python package. Give DeepEP a \
         # stable prefix that also exists in the Ubuntu runtime image. \
@@ -514,20 +515,21 @@ RUN --mount=type=cache,target=/opt/uv/cache \
         && ln -sf "${NCCL_LIBRARY}" /usr/lib/libnccl.so.2 \
         && ln -sf libnccl.so.2 /usr/lib/libnccl.so \
         && export EP_NCCL_ROOT_DIR=/usr; \
-    fi && \
-    CUDA_MAJOR=$(echo $CUDA_VERSION | cut -d. -f1) && \
-    if [ -n "$NCCL_VERSION" ]; then \
-        echo "nvidia-nccl-cu${CUDA_MAJOR}==${NCCL_VERSION}" \
-            > /tmp/nccl-override.txt && \
-        export UV_OVERRIDE=/tmp/nccl-override.txt; \
-    fi && \
-    export TORCH_CUDA_ARCH_LIST='9.0a 10.0a' && \
-    /tmp/install_python_libraries.sh \
-        --workspace /tmp/ep_kernels_workspace \
-        --mode wheel \
-        ${DEEPEP_COMMIT_HASH:+--deepep-ref "$DEEPEP_COMMIT_HASH"} \
-        ${NVSHMEM_VER:+--nvshmem-ver "$NVSHMEM_VER"} && \
-    find /tmp/ep_kernels_workspace/nvshmem -name '*.a' -delete
+        fi && \
+        CUDA_MAJOR=$(echo $CUDA_VERSION | cut -d. -f1) && \
+        if [ -n "$NCCL_VERSION" ]; then \
+            echo "nvidia-nccl-cu${CUDA_MAJOR}==${NCCL_VERSION}" \
+                > /tmp/nccl-override.txt && \
+            export UV_OVERRIDE=/tmp/nccl-override.txt; \
+        fi && \
+        export TORCH_CUDA_ARCH_LIST='9.0a 10.0a' && \
+        /tmp/install_python_libraries.sh \
+            --workspace /tmp/ep_kernels_workspace \
+            --mode wheel \
+            ${DEEPEP_COMMIT_HASH:+--deepep-ref "$DEEPEP_COMMIT_HASH"} \
+            ${NVSHMEM_VER:+--nvshmem-ver "$NVSHMEM_VER"} && \
+        find /tmp/ep_kernels_workspace/nvshmem -name '*.a' -delete; \
+    fi
 
 # Build Triton from source when a repository is configured. Triton 3.8 pins
 # ptxas-blackwell 13.3, which cannot assemble SM107. Rubin CUDA 13.4 and 13.5
