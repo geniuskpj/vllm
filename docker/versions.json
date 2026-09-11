@@ -13,6 +13,9 @@
     "INSTALL_RUBIN_PRERELEASE": {
       "default": "false"
     },
+    "BUILD_DEEPEP": {
+      "default": "false"
+    },
     "NCCL_VERSION": {
       "default": "2.30.7"
     },

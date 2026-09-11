@@ -26,6 +26,7 @@ ARG CUDA_VERSION=13.0.3
 ARG PYTHON_VERSION=3.12
 ARG UBUNTU_VERSION=24.04
 ARG INSTALL_RUBIN_PRERELEASE=false
+ARG BUILD_DEEPEP=false
 ARG TRITON_INSTALL_FROM_SOURCE_REPO=
 ARG TRITON_INSTALL_FROM_SOURCE_REVISION=
 # DeepEPv2 requires NCCL >= 2.30.4 (GIN backend).
@@ -475,6 +476,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
 # Build DeepEP - runs in PARALLEL with csrc-build
 # This stage is independent and doesn't affect csrc cache
 FROM base AS extensions-build
+ARG BUILD_DEEPEP
 ARG TARGETARCH
 ARG CUDA_VERSION
 ARG INSTALL_RUBIN_PRERELEASE
@@ -497,7 +499,9 @@ ARG NVSHMEM_VER
 ARG NCCL_VERSION
 RUN --mount=type=cache,target=/opt/uv/cache \
     mkdir -p /tmp/ep_kernels_workspace/dist && \
-    if [ "${INSTALL_RUBIN_PRERELEASE}" = "true" ]; then \
+    if [ "${BUILD_DEEPEP}" != "true" ]; then \
+        echo "DeepEP disabled"; \
+    elif [ "${INSTALL_RUBIN_PRERELEASE}" = "true" ]; then \
         # The Rubin CUDA builder provides NCCL in its architecture-specific \
         # toolkit directory rather than as a Python package. Give DeepEP a \
         # stable prefix that also exists in the Ubuntu runtime image. \
@@ -574,6 +578,7 @@ RUN --mount=type=cache,target=/opt/uv/cache \
 FROM base AS build
 ARG TARGETPLATFORM
 ARG INSTALL_RUBIN_PRERELEASE
+ARG BUILD_DEEPEP
 
 ARG PIP_INDEX_URL UV_INDEX_URL
 ARG PIP_EXTRA_INDEX_URL UV_EXTRA_INDEX_URL
@@ -661,8 +666,12 @@ RUN sha256sum dist/*.whl > dist/wheel.sha256
 COPY --from=extensions-build /tmp/ep_kernels_workspace/dist /tmp/ep_kernels_workspace/dist
 
 # Record the EP kernels wheel checksum for the same cache-busting purpose.
-RUN sha256sum /tmp/ep_kernels_workspace/dist/*.whl \
-    > /tmp/ep_kernels_workspace/dist/wheels.sha256
+RUN if [ "${BUILD_DEEPEP}" = "true" ]; then \
+        sha256sum /tmp/ep_kernels_workspace/dist/*.whl \
+            > /tmp/ep_kernels_workspace/dist/wheels.sha256; \
+    else \
+        touch /tmp/ep_kernels_workspace/dist/wheels.sha256; \
+    fi
 
 # Check the size of the CUDA 13 wheel uploaded to PyPI
 COPY .buildkite/check-wheel-size.py check-wheel-size.py
@@ -1011,6 +1020,7 @@ RUN --mount=type=cache,target=/opt/uv/cache \
 
 FROM vllm-runtime-base AS vllm-base
 
+ARG BUILD_DEEPEP
 ARG PIP_INDEX_URL UV_INDEX_URL
 ARG PIP_EXTRA_INDEX_URL UV_EXTRA_INDEX_URL
 ARG PYTORCH_CUDA_INDEX_BASE_URL
@@ -1055,8 +1065,12 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 COPY --from=build /tmp/ep_kernels_workspace/dist/wheels.sha256 /tmp/ep-kernels-wheels.sha256
 RUN --mount=type=bind,from=build,src=/tmp/ep_kernels_workspace/dist,target=/vllm-workspace/ep_kernels/dist \
     --mount=type=cache,target=/opt/uv/cache \
-    uv pip install --system ep_kernels/dist/*.whl --verbose \
-        --extra-index-url ${PYTORCH_CUDA_INDEX_BASE_URL}/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.')
+    if [ "${BUILD_DEEPEP}" = "true" ]; then \
+        uv pip install --system ep_kernels/dist/*.whl --verbose \
+            --extra-index-url ${PYTORCH_CUDA_INDEX_BASE_URL}/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.'); \
+    else \
+        echo "DeepEP disabled"; \
+    fi
 
 # CUDA image changed from /usr/local/nvidia to /usr/local/cuda in 12.8 but will
 # return to /usr/local/nvidia in 13.0 to allow container providers to mount drivers
@@ -1131,6 +1145,7 @@ RUN --mount=type=cache,target=/opt/uv/cache \
 FROM test-deps AS test
 
 ARG PYTHON_VERSION
+ARG BUILD_DEEPEP
 
 ARG PIP_INDEX_URL UV_INDEX_URL
 ARG PIP_EXTRA_INDEX_URL UV_EXTRA_INDEX_URL
@@ -1165,8 +1180,12 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 COPY --from=build /tmp/ep_kernels_workspace/dist/wheels.sha256 /tmp/ep-kernels-wheels.sha256
 RUN --mount=type=bind,from=build,src=/tmp/ep_kernels_workspace/dist,target=/vllm-workspace/ep_kernels/dist \
     --mount=type=cache,target=/opt/uv/cache \
-    uv pip install --system ep_kernels/dist/*.whl --verbose \
-        --extra-index-url ${PYTORCH_CUDA_INDEX_BASE_URL}/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.')
+    if [ "${BUILD_DEEPEP}" = "true" ]; then \
+        uv pip install --system ep_kernels/dist/*.whl --verbose \
+            --extra-index-url ${PYTORCH_CUDA_INDEX_BASE_URL}/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.'); \
+    else \
+        echo "DeepEP disabled"; \
+    fi
 
 # See the matching comment in the vllm-base stage.
 ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
