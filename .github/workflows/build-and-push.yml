@@ -58,7 +58,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: docker/Dockerfile
+          file: docker/Dockerfile.cu124
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
@@ -67,5 +67,8 @@ jobs:
             CUDA_VERSION=12.4.1
             NCCL_VERSION=2.30.7
             DEEPEP_COMMIT_HASH=d4f41e4e93
+            TORCH_CUDA_ARCH_LIST=9.0
+            MAX_JOBS=4
+            NVCC_THREADS=2
           cache-from: type=registry,ref=${{ steps.meta.outputs.cache_tag }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.cache_tag }},mode=max
