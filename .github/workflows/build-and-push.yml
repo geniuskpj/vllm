@@ -64,6 +64,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             UBUNTU_VERSION=22.04
-            CUDA_VERSION=12.4
+            CUDA_VERSION=12.4.1
           cache-from: type=registry,ref=${{ steps.meta.outputs.cache_tag }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.cache_tag }},mode=max
