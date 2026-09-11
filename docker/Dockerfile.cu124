@@ -56,6 +56,8 @@ ENV VIRTUAL_ENV=/opt/venv
 
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
 
+
+
 # IUS EL7 repository is retired.
 RUN find /etc/yum.repos.d -type f \
         -exec sed -i \
@@ -66,6 +68,10 @@ RUN dnf remove -y \
         git236 \
         git236-core \
     || true
+
+
+RUN dnf clean all \
+    && dnf makecache --refresh
 
 # CUDA 12.4 manylinux image uses dnf.
 RUN dnf install -y --setopt=install_weak_deps=False \
