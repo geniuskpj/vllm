@@ -63,7 +63,9 @@ RUN find /etc/yum.repos.d -type f \
         -exec sed -i \
         '/^\[ius\]/,/^\[/ s/^enabled=.*/enabled=0/' {} \; \
     || true
-
+RUN rm -f /etc/yum.repos.d/ius.repo \
+          /etc/yum.repos.d/ius-archive.repo \
+    || true
 RUN dnf remove -y \
         git236 \
         git236-core \
